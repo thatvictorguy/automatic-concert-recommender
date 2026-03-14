@@ -15,6 +15,7 @@ type ConcertFinder interface {
 
 // Notifier delivers a concert digest to the user.
 // section is a human-readable label for the group of concerts (e.g. "All-Time Top Artists").
+// artists is the full list of artists in the section; used when there are no concerts to show.
 type Notifier interface {
-	Notify(section string, concerts []Concert) error
+	Notify(section string, artists []Artist, concerts []Concert) error
 }

@@ -42,11 +42,12 @@ type mockNotifier struct {
 
 type notifyCall struct {
 	section  string
+	artists  []domain.Artist
 	concerts []domain.Concert
 }
 
-func (m *mockNotifier) Notify(section string, concerts []domain.Concert) error {
-	m.calls = append(m.calls, notifyCall{section: section, concerts: concerts})
+func (m *mockNotifier) Notify(section string, artists []domain.Artist, concerts []domain.Concert) error {
+	m.calls = append(m.calls, notifyCall{section: section, artists: artists, concerts: concerts})
 	return m.err
 }
 
@@ -85,8 +86,8 @@ func TestRecommendUseCase_Run_CallsBothSections(t *testing.T) {
 
 func TestRecommendUseCase_Run_FiltersToThreeWeeks(t *testing.T) {
 	artists := []domain.Artist{{ID: "1", Name: "Band"}}
-	withinWindow := time.Now().Add(10 * 24 * time.Hour)   // 10 days — within 3 weeks
-	outsideWindow := time.Now().Add(25 * 24 * time.Hour)  // 25 days — outside 3 weeks
+	withinWindow := time.Now().Add(10 * 24 * time.Hour)  // 10 days — within 3 weeks
+	outsideWindow := time.Now().Add(25 * 24 * time.Hour) // 25 days — outside 3 weeks
 
 	concerts := []domain.Concert{
 		{ID: "c1", Artist: artists[0], Venue: "V1", Date: withinWindow},
@@ -111,6 +112,37 @@ func TestRecommendUseCase_Run_FiltersToThreeWeeks(t *testing.T) {
 		if call.concerts[0].ID != "c1" {
 			t.Errorf("section %q: expected concert c1, got %q", call.section, call.concerts[0].ID)
 		}
+	}
+}
+
+// TestRecommendUseCase_Run_NotifiesArtistsWhenNoConcerts verifies that Notify is
+// called with the artists list even when no concerts are found, so the notifier
+// can produce a "no upcoming concerts" message.
+func TestRecommendUseCase_Run_NotifiesArtistsWhenNoConcerts(t *testing.T) {
+	recentArtists := []domain.Artist{{ID: "2", Name: "Ado"}, {ID: "3", Name: "Yorushika"}}
+
+	notifier := &mockNotifier{}
+	uc := application.RecommendUseCase{
+		Music: &mockMusicSource{
+			artists:       []domain.Artist{{ID: "1", Name: "Cornelius"}},
+			recentArtists: recentArtists,
+		},
+		Concerts: &mockConcertFinder{concerts: nil}, // no concerts
+		Notifier: notifier,
+	}
+
+	if err := uc.Run(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(notifier.calls) != 2 {
+		t.Fatalf("expected 2 Notify calls, got %d", len(notifier.calls))
+	}
+	recentCall := notifier.calls[1]
+	if len(recentCall.artists) != 2 {
+		t.Errorf("expected 2 artists passed to Notify for recent section, got %d", len(recentCall.artists))
+	}
+	if recentCall.artists[1].Name != "Yorushika" {
+		t.Errorf("unexpected second artist: %q", recentCall.artists[1].Name)
 	}
 }
 

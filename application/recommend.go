@@ -34,7 +34,7 @@ func (uc *RecommendUseCase) notifySection(section string, fetchArtists func() ([
 	}
 
 	upcoming := filterWithin(concerts, concertWindowDays)
-	return uc.Notifier.Notify(section, upcoming)
+	return uc.Notifier.Notify(section, artists, upcoming)
 }
 
 // filterWithin returns concerts that fall within the next [days] days from now.
