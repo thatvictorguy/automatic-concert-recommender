@@ -23,14 +23,11 @@ jobs:
 
       - name: Run recommendations
         env:
-          # Secrets — set via: gh secret set <NAME> --body "<value>"
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          # Variables — set via: gh variable set <NAME> --body "<value>"
           SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
           BANDSINTOWN_APP_ID: ${{ vars.BANDSINTOWN_APP_ID }}
-          # Required for automatic refresh token rotation
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: ./concert-recommender recommend
