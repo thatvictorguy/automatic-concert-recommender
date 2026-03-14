@@ -1,14 +1,14 @@
 # Automatic Concert Recommender
 
 ## Overview
-Automatically suggests upcoming concerts based on a user's Spotify listening habits and adds them to Google Calendar. Built in phases: CLI first, then HTTP API with UI, then Kubernetes deployment.
+Automatically suggests upcoming concerts in Japan based on a user's Spotify listening habits and sends a digest to a private Discord server. Built in phases: CLI first, then HTTP API with UI, then Kubernetes deployment.
 
 ## Tech Stack
 - **Language:** Go
 - **CLI framework:** Cobra (Phase 1)
 - **HTTP framework:** Gin (Phase 2)
-- **External APIs:** Spotify API, Google Calendar API
-- **Email:** SMTP (Phase 1 output delivery)
+- **External APIs:** Spotify Web API, Setlist.fm API
+- **Notifications:** Discord webhooks (Phase 1 output delivery)
 - **Containerization:** Docker + Kubernetes (Phase 3)
 
 ## Project Structure (DDD)
@@ -21,17 +21,17 @@ automatic-concert-recommender/
 ├── application/         # Use cases / orchestration
 │   └── recommend.go
 ├── infrastructure/      # External integrations
-│   ├── spotify/
-│   ├── calendar/
-│   └── email/
+│   ├── spotify/         # MusicSource: top artists via Spotify Web API
+│   ├── setlistfm/       # ConcertFinder: upcoming Japan concerts via Setlist.fm
+│   └── discord/         # Notifier: sends digest to Discord via webhook
 └── interfaces/          # Delivery mechanisms
     ├── cli/             # Phase 1: Cobra CLI
     └── http/            # Phase 2: Gin HTTP handlers
 ```
 
 ## Development Phases
-- **Phase 1:** CLI tool (Cobra) — fetch Spotify data, match concerts, send email digest
-- **Phase 2:** Add Gin HTTP API + UI
+- **Phase 1:** CLI tool (Cobra) — fetch Spotify data, find Japan concerts via Setlist.fm, send Discord digest
+- **Phase 2:** Add Gin HTTP API + UI (with configurable time ranges and concert window)
 - **Phase 3:** Containerize and deploy to Kubernetes
 
 ## Commands
