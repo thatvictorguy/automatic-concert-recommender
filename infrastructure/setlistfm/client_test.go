@@ -49,6 +49,7 @@ func newTestClient(t *testing.T, handler http.HandlerFunc) (*setlistfm.Client, f
 	c := setlistfm.New("test-api-key")
 	c.BaseURL = srv.URL
 	c.RateLimitDelay = 0
+	c.RetryDelay = 0
 	return c, srv.Close
 }
 
@@ -186,14 +187,59 @@ func TestFindConcerts_HTTPError(t *testing.T) {
 }
 
 func TestFindConcerts_Non200Status(t *testing.T) {
+	// 500 internal server error should propagate as an error.
 	c, close := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusTooManyRequests)
+		w.WriteHeader(http.StatusInternalServerError)
 	})
 	defer close()
 
 	_, err := c.FindConcerts([]domain.Artist{{Name: "Test"}})
 	if err == nil {
-		t.Fatal("expected error for 429, got nil")
+		t.Fatal("expected error for 500, got nil")
+	}
+}
+
+func TestFindConcerts_429RetriesAndSucceeds(t *testing.T) {
+	// First request gets 429, retry succeeds with results.
+	callCount := 0
+	c, close := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		if callCount == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(slResponse([]map[string]any{
+			slEvent("r1", "Test", futureDate(), "Zepp Tokyo", "Tokyo"),
+		}))
+	})
+	defer close()
+
+	concerts, err := c.FindConcerts([]domain.Artist{{Name: "Test"}})
+	if err != nil {
+		t.Fatalf("unexpected error after 429 retry: %v", err)
+	}
+	if len(concerts) != 1 {
+		t.Errorf("expected 1 concert after retry, got %d", len(concerts))
+	}
+	if callCount != 2 {
+		t.Errorf("expected 2 HTTP calls (429 + retry), got %d", callCount)
+	}
+}
+
+func TestFindConcerts_429TwiceSkipsArtist(t *testing.T) {
+	// Both attempts return 429 — artist is skipped, no error returned.
+	c, close := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+	})
+	defer close()
+
+	concerts, err := c.FindConcerts([]domain.Artist{{Name: "Test"}})
+	if err != nil {
+		t.Fatalf("expected no error when rate limited twice, got: %v", err)
+	}
+	if len(concerts) != 0 {
+		t.Errorf("expected 0 concerts when skipped, got %d", len(concerts))
 	}
 }
 
