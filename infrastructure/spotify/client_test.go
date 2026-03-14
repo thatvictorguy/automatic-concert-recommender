@@ -14,7 +14,6 @@ import (
 func testServer(t *testing.T, status int, body any) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify the Authorization header is set correctly
 		auth := r.Header.Get("Authorization")
 		if auth != "Bearer test-token" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -26,6 +25,21 @@ func testServer(t *testing.T, status int, body any) *httptest.Server {
 			t.Errorf("testServer: encode: %v", err)
 		}
 	}))
+}
+
+// capturingServer spins up a mock that captures the incoming request for inspection.
+func capturingServer(t *testing.T, body any) (*httptest.Server, func() *http.Request) {
+	t.Helper()
+	var captured *http.Request
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		captured = r
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(body); err != nil {
+			t.Errorf("capturingServer: encode: %v", err)
+		}
+	}))
+	return srv, func() *http.Request { return captured }
 }
 
 func newTestClient(baseURL string) *spotify.Client {
@@ -56,7 +70,6 @@ func TestTopArtists_ReturnsArtists(t *testing.T) {
 	if len(artists) != 2 {
 		t.Fatalf("expected 2 artists, got %d", len(artists))
 	}
-
 	if artists[0].ID != "1" || artists[0].Name != "Cornelius" {
 		t.Errorf("unexpected first artist: %+v", artists[0])
 	}
@@ -65,6 +78,25 @@ func TestTopArtists_ReturnsArtists(t *testing.T) {
 	}
 	if artists[1].Name != "Fishmans" {
 		t.Errorf("expected second artist Fishmans, got %q", artists[1].Name)
+	}
+}
+
+// TestTopArtists_UsesLongTermTimeRange verifies TopArtists sends long_term and limit=5.
+func TestTopArtists_UsesLongTermTimeRange(t *testing.T) {
+	body := map[string]any{"items": []any{}}
+	srv, getReq := capturingServer(t, body)
+	defer srv.Close()
+
+	if _, err := newTestClient(srv.URL).TopArtists(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	q := getReq().URL.Query()
+	if q.Get("time_range") != "long_term" {
+		t.Errorf("time_range = %q, want %q", q.Get("time_range"), "long_term")
+	}
+	if q.Get("limit") != "5" {
+		t.Errorf("limit = %q, want %q", q.Get("limit"), "5")
 	}
 }
 
@@ -80,7 +112,6 @@ func TestTopArtists_SendsBearerToken(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// Wrong token — should get an error
 	badClient := &spotify.Client{
 		AccessToken: "wrong-token",
 		BaseURL:     srv.URL,
@@ -90,7 +121,6 @@ func TestTopArtists_SendsBearerToken(t *testing.T) {
 		t.Fatal("expected error for wrong token, got nil")
 	}
 
-	// Correct token — should succeed
 	goodClient := &spotify.Client{
 		AccessToken: "correct-token",
 		BaseURL:     srv.URL,
@@ -118,15 +148,13 @@ func TestTopArtists_EmptyItems(t *testing.T) {
 	}
 }
 
-// TestTopArtists_NonOKStatus verifies that a non-200 response (e.g. 401 expired
-// token, 429 rate limit) is surfaced as an error.
+// TestTopArtists_NonOKStatus verifies that a non-200 response is surfaced as an error.
 func TestTopArtists_NonOKStatus(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "rate limited", http.StatusTooManyRequests)
 	}))
 	defer srv.Close()
 
-	// Bypass auth check in this test by hitting a raw handler
 	client := &spotify.Client{
 		AccessToken: "any",
 		BaseURL:     srv.URL,
@@ -141,6 +169,53 @@ func TestTopArtists_NonOKStatus(t *testing.T) {
 func TestTopArtists_HTTPError(t *testing.T) {
 	client := newTestClient("http://localhost:0") // nothing listening
 	if _, err := client.TopArtists(); err == nil {
+		t.Fatal("expected error for unreachable server, got nil")
+	}
+}
+
+// TestRecentTopArtists_ReturnsArtists verifies the happy path for recent artists.
+func TestRecentTopArtists_ReturnsArtists(t *testing.T) {
+	body := map[string]any{
+		"items": []map[string]any{
+			{"id": "3", "name": "Ado", "genres": []string{"j-pop"}},
+		},
+	}
+
+	srv := testServer(t, http.StatusOK, body)
+	defer srv.Close()
+
+	artists, err := newTestClient(srv.URL).RecentTopArtists()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(artists) != 1 || artists[0].Name != "Ado" {
+		t.Errorf("unexpected artists: %+v", artists)
+	}
+}
+
+// TestRecentTopArtists_UsesShortTermTimeRange verifies RecentTopArtists sends short_term and limit=5.
+func TestRecentTopArtists_UsesShortTermTimeRange(t *testing.T) {
+	body := map[string]any{"items": []any{}}
+	srv, getReq := capturingServer(t, body)
+	defer srv.Close()
+
+	if _, err := newTestClient(srv.URL).RecentTopArtists(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	q := getReq().URL.Query()
+	if q.Get("time_range") != "short_term" {
+		t.Errorf("time_range = %q, want %q", q.Get("time_range"), "short_term")
+	}
+	if q.Get("limit") != "5" {
+		t.Errorf("limit = %q, want %q", q.Get("limit"), "5")
+	}
+}
+
+// TestRecentTopArtists_HTTPError verifies network failures are surfaced as errors.
+func TestRecentTopArtists_HTTPError(t *testing.T) {
+	client := newTestClient("http://localhost:0")
+	if _, err := client.RecentTopArtists(); err == nil {
 		t.Fatal("expected error for unreachable server, got nil")
 	}
 }

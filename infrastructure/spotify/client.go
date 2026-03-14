@@ -41,10 +41,20 @@ type spArtist struct {
 	Genres []string `json:"genres"`
 }
 
-// TopArtists fetches the current user's top artists from Spotify.
+// TopArtists fetches the user's top 5 artists of all time (long_term).
 // Requires the user-top-read OAuth scope.
 func (c *Client) TopArtists() ([]domain.Artist, error) {
-	endpoint := c.BaseURL + "/v1/me/top/artists?limit=50&time_range=medium_term"
+	return c.fetchTopArtists("long_term", 5)
+}
+
+// RecentTopArtists fetches the user's top 5 artists from the past month (short_term).
+// Requires the user-top-read OAuth scope.
+func (c *Client) RecentTopArtists() ([]domain.Artist, error) {
+	return c.fetchTopArtists("short_term", 5)
+}
+
+func (c *Client) fetchTopArtists(timeRange string, limit int) ([]domain.Artist, error) {
+	endpoint := fmt.Sprintf("%s/v1/me/top/artists?limit=%d&time_range=%s", c.BaseURL, limit, timeRange)
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {

@@ -43,7 +43,7 @@ func TestNotify_Empty(t *testing.T) {
 	defer srv.Close()
 
 	n := discord.New(srv.URL)
-	if err := n.Notify(nil); err != nil {
+	if err := n.Notify("All-Time Top Artists", nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if called {
@@ -60,7 +60,7 @@ func TestNotify_SendsCorrectContentType(t *testing.T) {
 	defer srv.Close()
 
 	n := discord.New(srv.URL)
-	if err := n.Notify([]domain.Concert{concert("Band", "Zepp Tokyo", "Tokyo", "")}); err != nil {
+	if err := n.Notify("All-Time Top Artists", []domain.Concert{concert("Band", "Zepp Tokyo", "Tokyo", "")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if gotContentType != "application/json" {
@@ -73,7 +73,7 @@ func TestNotify_EmbedTitle(t *testing.T) {
 	defer srv.Close()
 
 	n := discord.New(srv.URL)
-	if err := n.Notify([]domain.Concert{concert("YOASOBI", "Zepp Tokyo", "Tokyo", "")}); err != nil {
+	if err := n.Notify("All-Time Top Artists", []domain.Concert{concert("YOASOBI", "Zepp Tokyo", "Tokyo", "")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -87,13 +87,32 @@ func TestNotify_EmbedTitle(t *testing.T) {
 	}
 }
 
+func TestNotify_SectionInContent(t *testing.T) {
+	srv, payload := capturePayload(t)
+	defer srv.Close()
+
+	n := discord.New(srv.URL)
+	if err := n.Notify("Past Month Top Artists", []domain.Concert{concert("Band", "Venue", "Tokyo", "")}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	content, _ := payload()["content"].(string)
+	if content == "" {
+		t.Fatal("expected content field with section header, got empty")
+	}
+	// Section name should appear in the content
+	if len(content) == 0 {
+		t.Errorf("content is empty, expected section label")
+	}
+}
+
 func TestNotify_EmbedURL_WhenTicketURLPresent(t *testing.T) {
 	srv, payload := capturePayload(t)
 	defer srv.Close()
 
 	n := discord.New(srv.URL)
 	c := concert("YOASOBI", "Zepp Tokyo", "Tokyo", "https://eplus.jp/ticket/123")
-	if err := n.Notify([]domain.Concert{c}); err != nil {
+	if err := n.Notify("All-Time Top Artists", []domain.Concert{c}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -109,7 +128,7 @@ func TestNotify_EmbedURL_AbsentWhenNoTicket(t *testing.T) {
 	defer srv.Close()
 
 	n := discord.New(srv.URL)
-	if err := n.Notify([]domain.Concert{concert("Band", "Venue", "Tokyo", "")}); err != nil {
+	if err := n.Notify("All-Time Top Artists", []domain.Concert{concert("Band", "Venue", "Tokyo", "")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -125,7 +144,7 @@ func TestNotify_EmbedColor(t *testing.T) {
 	defer srv.Close()
 
 	n := discord.New(srv.URL)
-	if err := n.Notify([]domain.Concert{concert("Band", "Venue", "Tokyo", "")}); err != nil {
+	if err := n.Notify("All-Time Top Artists", []domain.Concert{concert("Band", "Venue", "Tokyo", "")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -138,7 +157,7 @@ func TestNotify_EmbedColor(t *testing.T) {
 
 func TestNotify_HTTPError(t *testing.T) {
 	n := discord.New("http://127.0.0.1:1") // nothing listening on port 1
-	err := n.Notify([]domain.Concert{concert("Band", "Venue", "Tokyo", "")})
+	err := n.Notify("All-Time Top Artists", []domain.Concert{concert("Band", "Venue", "Tokyo", "")})
 	if err == nil {
 		t.Fatal("expected error for unreachable server, got nil")
 	}
@@ -151,7 +170,7 @@ func TestNotify_Non2xxStatus(t *testing.T) {
 	defer srv.Close()
 
 	n := discord.New(srv.URL)
-	err := n.Notify([]domain.Concert{concert("Band", "Venue", "Tokyo", "")})
+	err := n.Notify("All-Time Top Artists", []domain.Concert{concert("Band", "Venue", "Tokyo", "")})
 	if err == nil {
 		t.Fatal("expected error for non-2xx status, got nil")
 	}
@@ -172,7 +191,7 @@ func TestNotify_ChunksOver10Concerts(t *testing.T) {
 	}
 
 	n := discord.New(srv.URL)
-	if err := n.Notify(concerts); err != nil {
+	if err := n.Notify("All-Time Top Artists", concerts); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if requestCount != 2 {

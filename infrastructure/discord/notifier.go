@@ -29,9 +29,10 @@ func New(webhookURL string) *Notifier {
 	}
 }
 
-// Notify posts concert recommendations to Discord. It is a no-op when concerts is empty.
+// Notify posts concert recommendations to Discord under the given section label.
+// It is a no-op when concerts is empty.
 // Discord limits 10 embeds per message, so large lists are split across multiple requests.
-func (n *Notifier) Notify(concerts []domain.Concert) error {
+func (n *Notifier) Notify(section string, concerts []domain.Concert) error {
 	if len(concerts) == 0 {
 		return nil
 	}
@@ -42,15 +43,15 @@ func (n *Notifier) Notify(concerts []domain.Concert) error {
 		}
 		chunk := concerts[i:end]
 		isFirst := i == 0
-		if err := n.post(chunk, len(concerts), isFirst); err != nil {
+		if err := n.post(section, chunk, len(concerts), isFirst); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (n *Notifier) post(concerts []domain.Concert, total int, includeHeader bool) error {
-	p := buildPayload(concerts, total, includeHeader)
+func (n *Notifier) post(section string, concerts []domain.Concert, total int, includeHeader bool) error {
+	p := buildPayload(section, concerts, total, includeHeader)
 	body, err := json.Marshal(p)
 	if err != nil {
 		return fmt.Errorf("discord: marshal payload: %w", err)
@@ -80,7 +81,7 @@ type embed struct {
 	Color       int    `json:"color"`
 }
 
-func buildPayload(concerts []domain.Concert, total int, includeHeader bool) webhookPayload {
+func buildPayload(section string, concerts []domain.Concert, total int, includeHeader bool) webhookPayload {
 	embeds := make([]embed, len(concerts))
 	for i, c := range concerts {
 		e := embed{
@@ -96,7 +97,7 @@ func buildPayload(concerts []domain.Concert, total int, includeHeader bool) webh
 
 	p := webhookPayload{Embeds: embeds}
 	if includeHeader {
-		p.Content = fmt.Sprintf("🎵 **Upcoming Concerts in Japan** — %d found", total)
+		p.Content = fmt.Sprintf("🎵 **%s** — %d concert(s) found", section, total)
 	}
 	return p
 }
