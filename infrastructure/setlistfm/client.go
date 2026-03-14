@@ -37,7 +37,7 @@ func New(apiKey string) *Client {
 		BaseURL:        defaultBaseURL,
 		HTTP:           &http.Client{Timeout: 10 * time.Second},
 		RateLimitDelay: 2 * time.Second,
-		RetryDelay:     5 * time.Second,
+		RetryDelay:     10 * time.Second,
 	}
 }
 
@@ -75,10 +75,12 @@ type slCountry struct {
 }
 
 // FindConcerts searches Setlist.fm for upcoming Japan events for each artist.
+// A delay is applied before every request (including the first) to prevent
+// bursting against the free-tier rate limit of 2 req/sec, max 1440/day.
 func (c *Client) FindConcerts(artists []domain.Artist) ([]domain.Concert, error) {
 	var all []domain.Concert
-	for i, artist := range artists {
-		if i > 0 && c.RateLimitDelay > 0 {
+	for _, artist := range artists {
+		if c.RateLimitDelay > 0 {
 			time.Sleep(c.RateLimitDelay)
 		}
 		concerts, err := c.searchSetlists(artist)
