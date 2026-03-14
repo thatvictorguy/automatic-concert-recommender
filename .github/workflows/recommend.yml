@@ -1,0 +1,36 @@
+name: Concert Recommendations
+
+on:
+  schedule:
+    # Every Friday at 8:00 AM UTC (5:00 PM JST)
+    - cron: "0 8 * * 5"
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  recommend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build -o concert-recommender .
+
+      - name: Run recommendations
+        env:
+          # Secrets — set via: gh secret set <NAME> --body "<value>"
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Variables — set via: gh variable set <NAME> --body "<value>"
+          SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
+          BANDSINTOWN_APP_ID: ${{ vars.BANDSINTOWN_APP_ID }}
+          # Required for automatic refresh token rotation
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: ./concert-recommender recommend
