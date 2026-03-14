@@ -12,8 +12,8 @@ import (
 	spotifyendpoint "golang.org/x/oauth2/spotify"
 
 	"github.com/thatvictorguy/automatic-concert-recommender/application"
-	"github.com/thatvictorguy/automatic-concert-recommender/infrastructure/bandsintown"
 	"github.com/thatvictorguy/automatic-concert-recommender/infrastructure/discord"
+	"github.com/thatvictorguy/automatic-concert-recommender/infrastructure/setlistfm"
 	"github.com/thatvictorguy/automatic-concert-recommender/infrastructure/spotify"
 )
 
@@ -40,7 +40,7 @@ func runRecommend(cmd *cobra.Command, args []string) error {
 
 	uc := application.RecommendUseCase{
 		Music:    spotify.New(accessToken),
-		Concerts: bandsintown.New(cfg.BandsintownAppID),
+		Concerts: setlistfm.New(cfg.SetlistFMAPIKey),
 		Notifier: discord.New(cfg.DiscordWebhookURL),
 	}
 

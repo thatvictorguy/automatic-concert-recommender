@@ -17,7 +17,7 @@ func fullEnv() map[string]string {
 		"SPOTIFY_ACCESS_TOKEN":  "sp-token-123", // optional but included for coverage
 		"SPOTIFY_CLIENT_ID":     "client-id",
 		"SPOTIFY_CLIENT_SECRET": "client-secret",
-		"BANDSINTOWN_APP_ID":    "my-app",
+		"SETLISTFM_API_KEY":     "slkey-abc",
 		"DISCORD_WEBHOOK_URL":   "https://discord.com/api/webhooks/123/abc",
 	}
 }
@@ -37,8 +37,8 @@ func TestLoadConfig_AllPresent(t *testing.T) {
 	if cfg.ClientID != "client-id" {
 		t.Errorf("expected ClientID client-id, got %q", cfg.ClientID)
 	}
-	if cfg.BandsintownAppID != "my-app" {
-		t.Errorf("expected BandsintownAppID my-app, got %q", cfg.BandsintownAppID)
+	if cfg.SetlistFMAPIKey != "slkey-abc" {
+		t.Errorf("expected SetlistFMAPIKey slkey-abc, got %q", cfg.SetlistFMAPIKey)
 	}
 	if cfg.DiscordWebhookURL != "https://discord.com/api/webhooks/123/abc" {
 		t.Errorf("expected DiscordWebhookURL, got %q", cfg.DiscordWebhookURL)
@@ -61,15 +61,15 @@ func TestLoadConfig_SpotifyTokenOptional(t *testing.T) {
 	}
 }
 
-// TestLoadConfig_MissingBandsintownAppID verifies a missing BANDSINTOWN_APP_ID
+// TestLoadConfig_MissingSetlistFMAPIKey verifies a missing SETLISTFM_API_KEY
 // returns a descriptive error.
-func TestLoadConfig_MissingBandsintownAppID(t *testing.T) {
+func TestLoadConfig_MissingSetlistFMAPIKey(t *testing.T) {
 	env := fullEnv()
-	delete(env, "BANDSINTOWN_APP_ID")
+	delete(env, "SETLISTFM_API_KEY")
 	setEnv(t, env)
 
 	if _, err := loadConfig(); err == nil {
-		t.Fatal("expected error for missing BANDSINTOWN_APP_ID, got nil")
+		t.Fatal("expected error for missing SETLISTFM_API_KEY, got nil")
 	}
 }
 

@@ -12,8 +12,8 @@ type config struct {
 	SpotifyRefreshToken string
 	ClientID            string
 	ClientSecret        string
-	BandsintownAppID    string
-	DiscordWebhookURL   string
+	SetlistFMAPIKey   string
+	DiscordWebhookURL string
 }
 
 // loadConfig reads configuration from environment variables.
@@ -35,7 +35,7 @@ func loadConfig() (config, error) {
 		SpotifyRefreshToken: os.Getenv("SPOTIFY_REFRESH_TOKEN"), // optional, CI path
 		ClientID:            os.Getenv("SPOTIFY_CLIENT_ID"),     // optional (needed for refresh)
 		ClientSecret:        os.Getenv("SPOTIFY_CLIENT_SECRET"), // optional (needed for refresh)
-		BandsintownAppID:    require("BANDSINTOWN_APP_ID"),
+		SetlistFMAPIKey:     require("SETLISTFM_API_KEY"),
 		DiscordWebhookURL:   require("DISCORD_WEBHOOK_URL"),
 	}
 

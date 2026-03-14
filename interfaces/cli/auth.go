@@ -133,7 +133,7 @@ func runAuth(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("  # Variables (non-sensitive config):")
 	fmt.Printf("  gh variable set SPOTIFY_CLIENT_ID --body %q\n", clientID)
-	fmt.Println(`  gh variable set BANDSINTOWN_APP_ID --body "concert-recommender"`)
+	fmt.Println(`  gh secret set SETLISTFM_API_KEY --body "<your_setlistfm_api_key>"`)
 	fmt.Println("─────────────────────────────────────────────────────────")
 	return nil
 }
